@@ -1,0 +1,5 @@
+# Copy to local.properties and fill in. Free client id: https://devportal.jamendo.com
+JAMENDO_CLIENT_ID=your_client_id_here
+# Optional: enables searching inside the YouTube tab (pasting links works without it).
+# Create a key (YouTube Data API v3) at https://console.cloud.google.com/apis/credentials
+YOUTUBE_API_KEY=
