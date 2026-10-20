@@ -3,6 +3,7 @@ package com.freemusic.app
 import android.os.Bundle
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -81,6 +82,18 @@ class PlaybackService : MediaSessionService() {
                 }
             })
             .build()
+    }
+
+    /**
+     * Between two songs the player is briefly buffering, which counts as "not playing" and lets the
+     * service leave the foreground, after which the system can drop the notification. Stay in the
+     * foreground whenever playback is meant to continue.
+     */
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        val p = session.player
+        val continuing = p.playWhenReady && p.mediaItemCount > 0 &&
+            p.playbackState != Player.STATE_IDLE && p.playbackState != Player.STATE_ENDED
+        super.onUpdateNotification(session, startInForegroundRequired || continuing)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = session

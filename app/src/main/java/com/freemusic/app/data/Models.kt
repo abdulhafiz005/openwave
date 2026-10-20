@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 const val SOURCE_JAMENDO = "jamendo"
 const val SOURCE_LOCAL = "local"
 const val SOURCE_AUDIUS = "audius"
+const val SOURCE_YOUTUBE = "youtube"
 
 @Entity(tableName = "tracks")
 data class Track(

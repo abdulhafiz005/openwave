@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -70,7 +71,7 @@ fun YouTubeScreen(vm: MusicViewModel) {
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun YouTubeWebScreen(url: String, onClose: () -> Unit) {
+fun YouTubeWebScreen(url: String, onDownload: (String?) -> Unit, onClose: () -> Unit) {
     var web by remember { mutableStateOf<WebView?>(null) }
     androidx.activity.compose.BackHandler {
         val w = web
@@ -81,6 +82,7 @@ fun YouTubeWebScreen(url: String, onClose: () -> Unit) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClose) { Icon(Icons.Default.KeyboardArrowDown, "Close") }
                 Text("YouTube", Modifier.weight(1f))
+                IconButton({ onDownload(web?.url) }) { Icon(Icons.Default.Download, "Download audio") }
             }
             AndroidView(
                 modifier = Modifier.fillMaxSize(),

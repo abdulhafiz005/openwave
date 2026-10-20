@@ -51,10 +51,15 @@ abstract class AppDb : RoomDatabase() {
     abstract fun dao(): MusicDao
 
     companion object {
-        fun create(context: Context) =
-            Room.databaseBuilder(context, AppDb::class.java, "freemusic.db")
+        @Volatile private var instance: AppDb? = null
+
+        /** One instance per process, shared by the view model and the download service. */
+        fun create(context: Context): AppDb = instance ?: synchronized(this) {
+            instance ?: Room.databaseBuilder(context.applicationContext, AppDb::class.java, "freemusic.db")
                 .addMigrations(MIGRATION_1_2)
                 .build()
+                .also { instance = it }
+        }
 
         private val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {

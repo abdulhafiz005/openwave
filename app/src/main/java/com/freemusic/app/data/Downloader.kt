@@ -38,6 +38,14 @@ class Downloader(private val context: Context) {
         }
     }
 
+    /** Saves audio read from [input] (a YouTube stream, say) to Music and returns where it lives. */
+    suspend fun saveAudio(track: Track, ext: String, mime: String, input: java.io.InputStream): String =
+        withContext(Dispatchers.IO) {
+            val name = fileName(track, ext)
+            if (Build.VERSION.SDK_INT >= 29) writeToMediaStore(input, track, name, mime, SONGS_FOLDER)
+            else writeToPrivate(input, name)
+        }
+
     fun delete(path: String) {
         runCatching {
             if (path.startsWith("content:")) context.contentResolver.delete(Uri.parse(path), null, null)
@@ -52,13 +60,18 @@ class Downloader(private val context: Context) {
         } else File(path).exists()
     }.getOrDefault(false)
 
-    private fun saveToMediaStore(conn: HttpURLConnection, track: Track, name: String, mime: String): String {
+    private fun saveToMediaStore(conn: HttpURLConnection, track: Track, name: String, mime: String): String =
+        conn.inputStream.use { writeToMediaStore(it, track, name, mime, "Music/Free Music") }
+
+    private fun writeToMediaStore(
+        input: java.io.InputStream, track: Track, name: String, mime: String, folder: String,
+    ): String {
         val resolver = context.contentResolver
         val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.DISPLAY_NAME, name)
             put(MediaStore.Audio.Media.MIME_TYPE, mime)
-            put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/Free Music")
+            put(MediaStore.Audio.Media.RELATIVE_PATH, folder)
             put(MediaStore.Audio.Media.TITLE, track.title)
             put(MediaStore.Audio.Media.ARTIST, track.artist)
             if (track.album.isNotBlank()) put(MediaStore.Audio.Media.ALBUM, track.album)
@@ -67,7 +80,7 @@ class Downloader(private val context: Context) {
         }
         val uri = resolver.insert(collection, values) ?: error("Couldn't create the file")
         try {
-            resolver.openOutputStream(uri)!!.use { out -> conn.inputStream.use { it.copyTo(out) } }
+            resolver.openOutputStream(uri)!!.use { out -> input.copyTo(out) }
             resolver.update(uri, ContentValues().apply { put(MediaStore.Audio.Media.IS_PENDING, 0) }, null, null)
         } catch (e: Exception) {
             resolver.delete(uri, null, null)
@@ -76,10 +89,13 @@ class Downloader(private val context: Context) {
         return uri.toString()
     }
 
-    private fun saveToPrivate(conn: HttpURLConnection, name: String): String {
+    private fun saveToPrivate(conn: HttpURLConnection, name: String): String =
+        conn.inputStream.use { writeToPrivate(it, name) }
+
+    private fun writeToPrivate(input: java.io.InputStream, name: String): String {
         val dir = File(context.filesDir, "music").apply { mkdirs() }
         val file = File(dir, name)
-        conn.inputStream.use { input -> file.outputStream().use { input.copyTo(it) } }
+        input.use { src -> file.outputStream().use { src.copyTo(it) } }
         return file.absolutePath
     }
 
@@ -99,5 +115,9 @@ class Downloader(private val context: Context) {
             fromName == "ogg" || mime == "audio/ogg" -> "ogg" to "audio/ogg"
             else -> "mp3" to "audio/mpeg"
         }
+    }
+
+    private companion object {
+        const val SONGS_FOLDER = "Music"
     }
 }

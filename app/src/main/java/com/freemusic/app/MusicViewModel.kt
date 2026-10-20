@@ -283,6 +283,21 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Saves the audio of the YouTube page currently open in the in-app browser to the Music folder. */
+    fun downloadYoutube(pageUrl: String?) {
+        val id = pageUrl?.let { YouTubeRepository.parseVideoId(it) }
+        if (id == null) {
+            toast("Open a video first, then tap download")
+            return
+        }
+        toast("Downloading…")
+        DownloadService.start(getApplication(), id)
+    }
+
+    // The in-app browser covers the snackbar, so progress here is shown as toasts.
+    private fun toast(msg: String) =
+        android.widget.Toast.makeText(getApplication(), msg, android.widget.Toast.LENGTH_SHORT).show()
+
     fun removeDownload(track: Track) = viewModelScope.launch {
         withContext(Dispatchers.IO) { track.downloadedPath?.let(downloader::delete) }
         dao.setDownloaded(track.id, null)

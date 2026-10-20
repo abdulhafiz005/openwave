@@ -67,7 +67,7 @@ fun FreeMusicApp(vm: MusicViewModel) {
     }
 
     val webUrl by vm.youtubeWebUrl.collectAsState()
-    webUrl?.let { YouTubeWebScreen(it) { vm.closeYoutubeWeb() } }
+    webUrl?.let { YouTubeWebScreen(it, onDownload = vm::downloadYoutube) { vm.closeYoutubeWeb() } }
 
     if (showPlayer) {
         BackHandler { showPlayer = false }
