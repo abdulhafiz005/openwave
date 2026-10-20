@@ -58,6 +58,37 @@ fun TrackList(
     }
 }
 
+/**
+ * Two groups of tracks in one list, with a heading above each. With only one non-empty group
+ * there are no headings. Tapping a row plays both groups as one queue, in the order shown.
+ */
+@Composable
+fun SectionedTrackList(
+    vm: MusicViewModel,
+    first: List<Track>,
+    second: List<Track>,
+    firstTitle: String,
+    secondTitle: String,
+    modifier: Modifier = Modifier,
+    extraMenu: (@Composable (Track, () -> Unit) -> Unit)? = null,
+) {
+    val queue = first + second
+    val showHeadings = first.isNotEmpty() && second.isNotEmpty()
+    LazyColumn(modifier, contentPadding = PaddingValues(bottom = 16.dp)) {
+        if (showHeadings) item(key = "h1") { SectionTitle(firstTitle) }
+        itemsIndexed(first, key = { _, t -> t.id }) { i, t ->
+            TrackRow(vm, t, onClick = { vm.play(queue, i) }, extraMenu = extraMenu)
+        }
+        if (showHeadings) item(key = "h2") {
+            HorizontalDivider(Modifier.padding(top = 8.dp))
+            SectionTitle(secondTitle)
+        }
+        itemsIndexed(second, key = { _, t -> t.id }) { i, t ->
+            TrackRow(vm, t, onClick = { vm.play(queue, first.size + i) }, extraMenu = extraMenu)
+        }
+    }
+}
+
 @Composable
 fun TrackRow(
     vm: MusicViewModel,

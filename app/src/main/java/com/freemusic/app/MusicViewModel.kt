@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URL
 
-private val SONG_FOLDER_NAME = Regex("music|song|audio|mp3|track", RegexOption.IGNORE_CASE)
+private val SONG_FOLDER_NAME = Regex("music|song|mp3", RegexOption.IGNORE_CASE)
 
 enum class MusicSource(val label: String) { JAMENDO("Jamendo"), AUDIUS("Audius") }
 
@@ -40,8 +40,8 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     val videoResults = MutableStateFlow<List<Video>>(emptyList())
     val youtubeWebUrl = MutableStateFlow<String?>(null)
     val localTracks = MutableStateFlow<List<Track>>(emptyList())
-    /** Folder (relative path) of each local video, keyed by track id. */
-    val localVideoFolders = MutableStateFlow<Map<String, String>>(emptyMap())
+    /** Folder (relative path) of each local file, keyed by track id. */
+    val localFolders = MutableStateFlow<Map<String, String>>(emptyMap())
     private val prefs = app.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
     /** Folders the user marked as holding songs, on top of the built-in Music/Songs name match. */
     val songFolders = MutableStateFlow(prefs.getStringSet("song_folders", emptySet()).orEmpty())
@@ -173,12 +173,14 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     fun scanLocal() = viewModelScope.launch {
         runCatching { localRepo.scan() }.onSuccess {
             localTracks.value = it.tracks
-            localVideoFolders.value = it.videoFolders
+            localFolders.value = it.folders
         }
     }
 
+    /** The Music folder, any folder with music/song in its name, or one the user marked. App data under Android/ never counts. */
     fun isSongFolder(folder: String) =
-        folder in songFolders.value || SONG_FOLDER_NAME.containsMatchIn(folder)
+        folder in songFolders.value ||
+            (!folder.startsWith("Android/", ignoreCase = true) && SONG_FOLDER_NAME.containsMatchIn(folder))
 
     fun setSongFolder(folder: String, enabled: Boolean) {
         songFolders.value = if (enabled) songFolders.value + folder else songFolders.value - folder

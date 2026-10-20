@@ -181,17 +181,31 @@ private fun LocalTab(vm: MusicViewModel) {
         }
         return
     }
-    val folders by vm.localVideoFolders.collectAsState()
+    val folders by vm.localFolders.collectAsState()
     val songFolders by vm.songFolders.collectAsState()
-    val audio = tracks.filterNot { it.isVideo }
-    val (videoSongs, otherVideos) = tracks.filter { it.isVideo }
-        .partition { vm.isSongFolder(folders[it.id].orEmpty()) }
-    val shown = when (filter) {
-        LocalFilter.All -> audio + videoSongs
-        LocalFilter.Audio -> audio
-        LocalFilter.Video -> videoSongs
-        LocalFilter.Other -> otherVideos
+    val songFolderIds = remember(tracks, folders, songFolders) {
+        tracks.filter { vm.isSongFolder(folders[it.id].orEmpty()) }.map { it.id }.toSet()
     }
+    val audio = tracks.filterNot { it.isVideo }
+    val videos = tracks.filter { it.isVideo }
+    val (videoSongs, otherVideos) = videos.partition { it.id in songFolderIds }
+    // Songs in the Music folder first, then a separator, then audio from anywhere else.
+    val (audioInMusic, audioElsewhere) = audio.partition { it.id in songFolderIds }
+    val musicFolderSongs = (audioInMusic + videoSongs).sortedBy { it.title.lowercase() }
+
+    val menu: @Composable (com.freemusic.app.data.Track, () -> Unit) -> Unit = { t, close ->
+        val folder = folders[t.id]
+        if (t.isVideo && folder != null && folder.isNotBlank()) {
+            if (folder in songFolders) DropdownMenuItem(
+                text = { Text("Stop using this folder for songs") },
+                onClick = { close(); vm.setSongFolder(folder, false) },
+            ) else if (!vm.isSongFolder(folder)) DropdownMenuItem(
+                text = { Text("Use this folder for songs") },
+                onClick = { close(); vm.setSongFolder(folder, true) },
+            )
+        }
+    }
+
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.horizontalScroll(rememberScrollState()).padding(16.dp, 8.dp),
@@ -201,24 +215,26 @@ private fun LocalTab(vm: MusicViewModel) {
                 FilterChip(filter == it, { filter = it }, label = { Text(it.label) })
             }
         }
-        if (shown.isEmpty()) EmptyState(
+        val first: List<com.freemusic.app.data.Track>
+        val second: List<com.freemusic.app.data.Track>
+        when (filter) {
+            LocalFilter.All -> { first = musicFolderSongs; second = audioElsewhere }
+            LocalFilter.Audio -> { first = audioInMusic; second = audioElsewhere }
+            LocalFilter.Video -> { first = videoSongs; second = emptyList() }
+            LocalFilter.Other -> { first = otherVideos; second = emptyList() }
+        }
+        if (first.isEmpty() && second.isEmpty()) EmptyState(
             when (filter) {
                 LocalFilter.Video -> "No video songs yet. Put videos in a folder named Music or Songs, " +
                     "or open Other videos and use \u22EE \u2192 Use this folder for songs."
                 else -> "No ${filter.label.lowercase()} files found on this device"
             },
-        ) else TrackList(vm, shown, extraMenu = { t, close ->
-            val folder = folders[t.id]
-            if (t.isVideo && folder != null && folder.isNotBlank()) {
-                if (folder in songFolders) DropdownMenuItem(
-                    text = { Text("Stop using this folder for songs") },
-                    onClick = { close(); vm.setSongFolder(folder, false) },
-                ) else if (!vm.isSongFolder(folder)) DropdownMenuItem(
-                    text = { Text("Use this folder for songs") },
-                    onClick = { close(); vm.setSongFolder(folder, true) },
-                )
-            }
-        })
+        ) else SectionedTrackList(
+            vm, first, second,
+            firstTitle = "In your Music folder",
+            secondTitle = "Other locations",
+            extraMenu = menu,
+        )
     }
 }
 
